@@ -11,27 +11,44 @@ const io = new Server(server, {
   },
 });
 
-export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
-}
-
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
+// Change the userSocketMap to track multiple socket IDs per user
+const userSocketMap = {}; // {userId: [socketId1, socketId2, ...]}
 
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
 
   const userId = socket.handshake.query.userId;
-  if (userId) userSocketMap[userId] = socket.id;
+  
+  if (userId) {
+    // Initialize array if it doesn't exist
+    if (!userSocketMap[userId]) {
+      userSocketMap[userId] = [];
+    }
+    // Add the socket ID to the user's array
+    userSocketMap[userId].push(socket.id);
+  }
 
-  // io.emit() is used to send events to all the connected clients
+  // Send the list of online users (user IDs) to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
-    delete userSocketMap[userId];
+    
+    if (userId && userSocketMap[userId]) {
+      // Remove the specific socket ID from the user's array
+      userSocketMap[userId] = userSocketMap[userId].filter(id => id !== socket.id);
+      
+      // If no more connections exist for this user, remove the entry entirely
+      if (userSocketMap[userId].length === 0) {
+        delete userSocketMap[userId];
+      }
+    }
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
+// Update getReceiverSocketId to handle multiple connections
+export function getReceiverSocketId(userId) {
+  return userSocketMap[userId] || [];
+}
 export { io, app, server };

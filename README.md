@@ -40,3 +40,5 @@ npm run build
 ```shell
 npm start
 ```
+
+<!-- there are two different scripts in package.json that i will be running in the production -->
